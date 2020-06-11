@@ -1,0 +1,67 @@
+//6/10/2020
+package main
+
+import (
+    "bufio"   //Scanner
+    "fmt"     //Stdout Println
+    "os"      //Stdin
+    "strconv" //string to int conversions
+    "strings" //string handling from Stdin
+    "sync"    //waitgroup
+)
+
+var totalOutOrder = make([]int, 100) //os.stdout information holder, sums all in order.
+
+func accounting(graphedWorkload []string, length int, total int, start int) int { //does sum calculation of graph given by worker and returns total.
+    var numholder, _ = strconv.Atoi(graphedWorkload[start])
+    length -= 1
+    if numholder > 0 {
+        numholder = numholder * numholder
+        total = total + numholder
+        start += 1
+    } else {
+        start += 1
+    }
+    if length > 0 {
+        return accounting(graphedWorkload, length, total, start)
+    }
+    return total
+}
+func worker(wg *sync.WaitGroup, length int, graphedWorkload []string, workerID int) { //Finds sum from given line of numbers, inputs it into array according to it's call order(workerID).
+    defer wg.Done()
+    var total = accounting(graphedWorkload, length, 0, 0)
+    totalOutOrder[workerID] = total
+}
+
+func manager(wg *sync.WaitGroup, s *bufio.Scanner, workload int, workerID int) { //recursively parses through stdin, creating workers to find sums.
+    if workload != 0 {
+        s.Scan()
+        var length, _ = strconv.Atoi(s.Text())
+        _ = length
+        s.Scan()
+        a := strings.Fields(s.Text())
+        go worker(wg, length, a, workerID)
+        workload -= 1
+        workerID += 1
+        manager(wg, s, workload, workerID)
+    }
+}
+func stdoutwriter(length int, start int) {//Output exact # of calculated sums. 
+    if length >= start {
+        fmt.Println(totalOutOrder[start])
+        start += 1
+        stdoutwriter(length, start)
+    }
+}
+
+func main() {//Start scanner to get Stdin, wait for threads to resolve alongside function calls. 
+    var wg sync.WaitGroup 
+    s := bufio.NewScanner(os.Stdin)
+    s.Scan()
+    var workload, _ = strconv.Atoi(s.Text())
+    _ = workload
+    wg.Add(workload)
+    go manager(&wg, s, workload, 0)
+    wg.Wait()
+    stdoutwriter(workload-1, 0)
+}
